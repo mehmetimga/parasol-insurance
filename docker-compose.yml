@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  # Ollama service for local AI model
+  ollama:
+    image: ollama/ollama:latest
+    container_name: parasol-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Main Parasol Insurance application
+  parasol-app:
+    build: .
+    container_name: parasol-insurance
+    ports:
+      - "8080:8080"
+    environment:
+      - OPENAI_API_KEY=EMPTY
+      - AI_CHAT_MODEL_TEMPERATURE=0.3
+      - AI_CHAT_MODEL_NAME=llama3.1
+      - AI_CHAT_BASE_URL=http://ollama:11434/v1
+      - PORT=8080
+      - NODE_ENV=production
+    depends_on:
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Model setup service (runs once to pull the model)
+  model-setup:
+    image: ollama/ollama:latest
+    container_name: parasol-model-setup
+    depends_on:
+      ollama:
+        condition: service_healthy
+    command: >
+      sh -c "
+        echo 'Waiting for Ollama to be ready...' &&
+        sleep 10 &&
+        echo 'Pulling llama3.1 model...' &&
+        ollama --host http://ollama:11434 pull llama3.1 &&
+        echo 'Model setup complete!'
+      "
+    restart: "no"
+
+volumes:
+  ollama_data:
