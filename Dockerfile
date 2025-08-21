@@ -4,7 +4,7 @@ FROM node:18-alpine AS frontend-build
 # Build the frontend
 WORKDIR /app/webui
 COPY app/webui/package*.json ./
-RUN npm ci --only=production
+RUN npm ci
 
 COPY app/webui/ ./
 RUN npm run build
@@ -34,11 +34,11 @@ RUN chown -R parasol:nodejs /app
 USER parasol
 
 # Expose port
-EXPOSE 8080
+EXPOSE 8005
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:8080/ || exit 1
+  CMD curl -f http://localhost:8005/ || exit 1
 
 # Start the application
 CMD ["node", "server.mjs"]
